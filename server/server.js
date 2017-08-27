@@ -1,5 +1,7 @@
 const express = require('express');
 const bodyParser = require('body-parser');
+const port = process.env.PORT || 3000;
+
 let mongoose= require('./db/mongoose');
 let {ObjectID} = require('mongodb');
 let {Todos} = require('./models/Todos');
@@ -36,12 +38,12 @@ console.log('unable to display database');
 app.get('/todos/:id', (req,res)=>{
     let id =req.params.id;
     if (!ObjectID.isValid(id)){
-    return res.status(400).send('{Invalid Id }');
+    return res.status(404).send('{Invalid Id}');
          }
          
     Todos.findById(id).then((todo)=>{
         if(!todo){
-        return res.status(404).send({});
+        return res.status(400).send("{no item found}");
         }
        res.status(200).send(todo);
     },(e)=>{
@@ -49,9 +51,24 @@ app.get('/todos/:id', (req,res)=>{
     })
 });    
 
+app.delete('/todos/:id',(req, res)=>{
+    let id= req.params.id;
+    if(!ObjectID.isValid(id)){
+      return  res.status(400).send('Invalid id');
+         
+    }
+    Todos.findByIdAndRemove(id).then((todo)=>{
+      if(!todo){
+          res.status(404).send('id not found')
+      }
+       res.status(200).send(todo);
+    },(e)=>{
+      console.log(e);
+    })
+});
 
-app.listen(3000, ()=>{
-    console.log('Server is running on port 3000')
+app.listen(port, ()=>{
+    console.log('Server is running on port:',port); 
 });
 
 module.exports ={

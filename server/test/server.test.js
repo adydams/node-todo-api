@@ -80,5 +80,32 @@ describe('POST/todos', ()=>{
             }).catch((e)=>done(e));
         });
     })
-    
+    it('should validate id',(done)=>{
+        let id ='59976a149685961bd4b87255lll';
+       
+        request(app)
+            .get('/todo/:id')
+            .expect(400)
+            .expect((res)=>{
+                expect(res.body).toBe("{Invalid Id }")
+            }).end(done)
+    })
+    it('should return empty array for id not found ', (done)=>{
+        let id='59976a149685961bd4b87255';
+        request(app)
+        .get('/todos/:id')
+        .expect(400)
+        .expect((res)=>{
+            expect(res.body).toEqual({})
+        }).end(done)
+    })
+    it ('should return TODO', (done)=>{
+        
+        request(app)
+        .get('/todos/id')
+        .expect(200)
+        .expect((res)=>{
+            expect(res.body.length).toEqual(3)
+        }).end(done)
+    })
 })

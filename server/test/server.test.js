@@ -1,12 +1,15 @@
 const expect = require('expect');
 const request = require('supertest');
+const {ObjectID} =require('mongoDB')
 
 let {app} = require('./../server');
 let {Todos} = require('./../models/Todos'); 
 //having some array records in the db
 const todos=[
-    {text:'first todo'}, 
-    {text:'second to do'}
+    {   _id: new ObjectID(),
+        text:'first todo'}, 
+    {   _id: new ObjectID(),
+        text:'second to do'}
     ]
 
 //should remove all the db record before running test 
@@ -85,27 +88,63 @@ describe('POST/todos', ()=>{
        
         request(app)
             .get('/todo/:id')
-            .expect(400)
+            .expect(404)
             .expect((res)=>{
-                expect(res.body).toBe("{Invalid Id }")
+                expect(res.body).toEqual({})
             }).end(done)
     })
-    it('should return empty array for id not found ', (done)=>{
-        let id='59976a149685961bd4b87255';
+    it('should return empty array/404 for id not found ', (done)=>{
+        let id='59a3906df42fb702c04b60f2';
         request(app)
         .get('/todos/:id')
-        .expect(400)
+        .expect(404)
         .expect((res)=>{
             expect(res.body).toEqual({})
         }).end(done)
     })
-    it ('should return TODO', (done)=>{
-        
+    it ('should return error if TODO not found', (done)=>{
+        let id= new ObjectID().toHexString();
+      request(app)
+        .get('/todos/:id')
+        .expect(404)
+        .end(done)
+    })
+})
+
+describe('deleting todos', ()=>{
+    it('delete todo by id', (done)=>{
+    let hexid= todos[1]._id.toHexString();
+    request(app)
+       .delete('/todos/:hexid')
+       .expect(200)
+       .expect((res)=>{
+           expect(res.body.todo._id).toEqual(id)
+            }).end((err,res)=>{
+           if (err){
+           return done(err)
+        }
+        Todos.fidById(hexid).then((todo)=>{
+        expect(todo).toNotExist()
+        }).catch((e)=>done(e))
+       })
+    })
+
+it('should validate id', (done)=>{
+     let id= new ObjectID().toHexString();
+      request(app)
+        .delete('/todos/:id')
+        .expect(400)
+        .end(done)
+    })
+   
+   it('should return 404 for invalid id', (done)=>{
+     let id='59a3906df42fb702c04b60f2';
         request(app)
-        .get('/todos/id')
-        .expect(200)
+        .get('/todos/:id')
+        .expect(404)
         .expect((res)=>{
-            expect(res.body.length).toEqual(3)
+            expect(res.body).toEqual({})
         }).end(done)
+    
     })
 })

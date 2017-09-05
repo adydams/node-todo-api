@@ -1,15 +1,19 @@
 const expect = require('expect');
 const request = require('supertest');
-const {ObjectID} =require('mongoDB')
+const {ObjectID} = require('mongoDB')
 
 let {app} = require('./../server');
 let {Todos} = require('./../models/Todos'); 
 //having some array records in the db
 const todos=[
     {   _id: new ObjectID(),
-        text:'first todo'}, 
+        text:'first todo'
+    }, 
     {   _id: new ObjectID(),
-        text:'second to do'}
+        text:'second to do',
+        completed: true,
+        completedAt: 542
+}
     ]
 
 //should remove all the db record before running test 
@@ -79,7 +83,7 @@ describe('POST/todos', ()=>{
             }
             Todos.find().then((todo)=>{
               expect(todo.length).toBe(2);
-                done();  
+              done();  
             }).catch((e)=>done(e));
         });
     })
@@ -115,7 +119,7 @@ describe('deleting todos', ()=>{
     it('delete todo by id', (done)=>{
     let hexid= todos[1]._id.toHexString();
     request(app)
-       .delete('/todos/:hexid')
+       .delete('/todos/hexid')
        .expect(200)
        .expect((res)=>{
            expect(res.body.todo._id).toEqual(id)
@@ -137,7 +141,7 @@ it('should validate id', (done)=>{
         .end(done)
     })
    
-   it('should return 404 for invalid id', (done)=>{
+   it('should return 400 for invalid id', (done)=>{
      let id='59a3906df42fb702c04b60f2';
         request(app)
         .get('/todos/:id')
@@ -147,4 +151,52 @@ it('should validate id', (done)=>{
         }).end(done)
     
     })
+})
+describe('patch routes', ()=>{
+    it('returns 400 for invalid id',(done)=>{
+        let id='59a3aa0636c6fc24204a643d' 
+        request(app)
+            .patch('/todos/:id')
+            .expect(404)
+            .expect((res)=>{
+               expect(res.body).toEqual({})           
+             }).end(done)
+   })
+   it('should update existing todos when completed',(done)=>{
+    let id= todos[0]._id.toHexString();
+    let text = 'testing routes';
+    request(app)
+        .patch('/todos/:id')
+           .send({
+              completed:true, 
+              text
+             })
+            .expect(200)
+            .expect((res)=>{
+                expect(res.body.todo.text).toBe(text)
+                expect(res.body.todo.completed).toBe(true)
+                expect(res.body.todo.completedAt).toBeA(number)
+            done()
+            })
+            
+     })   
+        
+
+   it('should update when completed is false ', (done)=>{
+    let id= todos[0]._id.toHexString();
+    let text = 'testing routes!!!';
+    request(app)
+        .patch('/todos/:id')
+           .send({
+              completed:false, 
+              text
+             })
+            .expect(200)
+            .expect((res)=>{
+                expect(res.body.todo.text).toBe(text)
+                expect(res.body.todo.completed).toBe(false)
+                expect(res.body.todo.completedAt).toNotExist()
+            done()
+            })
+   })
 })

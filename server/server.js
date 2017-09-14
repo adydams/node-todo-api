@@ -4,11 +4,13 @@ const bodyParser = require('body-parser');
 const port = process.env.PORT || 3000;
 const validator = require('validator');
 const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 let mongoose= require('./db/mongoose');
 let {ObjectID} = require('mongodb');
 let {Todos} = require('./models/Todos');
 let {Users} = require('./models/Users');
 let {authenticate} = require('./middleware/authenticate')
+
 //creating test database
 
 // let env= process.env.NODE_ENV||'development';
@@ -28,22 +30,26 @@ let app = express();
 //middleware
 app.use(bodyParser.json());
 //post route
-app.post('/todos', (req, res)=>{
+app.post('/todos', authenticate, (req, res)=>{
     let newTodo = new Todos({
-    text: req.body.text
-}); 
+    text: req.body.text,
+    _creator: req.User._id
+    }); 
 
-newTodo.save().then((docs)=>{
-res.send(docs)
-console.log('Submitted');
-}, (err)=>{
-res.status(400).send(err);
-}); 
+    newTodo.save().then((docs)=>{
+        res.send(docs)
+        console.log('Submitted');
+        }, (err)=>{
+        res.status(400).send(err);
+    }); 
 });
 
 //routes to get all records in db
-app.get('/todos',(req,res)=> {
-Todos.find().then((todo)=>{
+app.get('/todos',authenticate, (req,res)=> {
+
+Todos.find({
+    _creator: req.User._id
+}).then((todo)=>{
 res.send({todo});
 }, (e)=>{
 console.log('unable to display database');
@@ -51,13 +57,16 @@ console.log('unable to display database');
 });
 
 //routes to fetch Todo by id
-app.get('/todos/:id', (req,res)=>{
+app.get('/todos/:id', authenticate, (req,res)=>{
     let id =req.params.id;
     if (!ObjectID.isValid(id)){
     return res.status(404).send('invalid Id');
          }
          
-    Todos.findById({_id:id}).then((todo)=>{
+    Todos.findOne({
+             _id: id,
+             _creator: req.User._id 
+        }).then((todo)=>{
         if(!todo){
         return res.status(400).send("{no item found}");
         }
@@ -70,7 +79,7 @@ app.get('/todos/:id', (req,res)=>{
 app.delete('/todos/:id',(req, res)=>{
     let id= req.params.id;
     if(!ObjectID.isValid(id)){
-      return  res.status(400).send('Invalid id');
+      return res.status(400).send('Invalid id');
          
     }
     Todos.findByIdAndRemove(id).then((todo)=>{
@@ -90,19 +99,19 @@ app.patch('/todos/:id',(req,res)=>{
 
  if (!ObjectID.isValid(id) ) {
      return res.status(404).send();
- }
+    }
  if (_.isBoolean(body.completed) && body.completed) {
      body.completedAt = new Date().getFullYear().toString();
      } else {
      body.completed = false,
      body.completedAt= null
- }
- Todos.findOneAndUpdate({_id: id}, {$set:body}, {new:true}).then((todo)=>{
-     if(!todo){
+    }
+    Todos.findOneAndUpdate({_id: id}, {$set:body}, {new:true}).then((todo)=>{
+      if(!todo){
         return res.status(404).send();
-     }
-     return res.status(200).send({todo});
- })
+    }
+        return res.status(200).send({todo});
+    })
 });
 
 app.post('/user', (req, res) => {
@@ -118,31 +127,36 @@ app.post('/user', (req, res) => {
   })
 });
 
-//creating private routes7
+//creating private routes
 //authenticate as middle ware
 
 app.get('/user/myToken', authenticate, (req, res)=>{
-   
+
    res.send(req.User);
 });
 
-// app.post('/user',(req, res)=>{
+//route for user login
+app.post('/user/login', (req, res)=>{
+    let body =_.pick(req.body,['email','password']);
+    //res.send({body} );
+   Users.findByCredentials(body.email, body.password).then((user)=>{
+       return user.generateAuthToken().then((token)=>{
+           res.header('x-auth', token).send(user);
+       })
+   }).catch((e) =>{
+       res.status(400).send()
+   }) 
+});
 
-// let body = _.pick(req.body, ['email', 'password']);
-// let user= new Users(body);
+app.delete('/user/myToken/logout', authenticate, (req, res)=>{
 
-// user.save().then((user)=>{
-//   // res.status(200).send(user);
-//    return user.generateAuthtoken();
-  
-// }).then((token)=>{
-//   res.header('x-auth', token).send(user);
-// })
-// .catch((e)=>{
-//     res.status(400).send(e)
-   
-// })
-// });
+    req.User.removeToken(req.token).then(()=>{
+        res.status(200).send();
+    }, ()=>{
+        res.status(400).send();
+    })
+});
+
 
 app.listen(port, ()=>{
     console.log('Server is running on port:',port); 

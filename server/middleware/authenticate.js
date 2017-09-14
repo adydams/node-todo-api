@@ -6,12 +6,12 @@ let authenticate = (req, res, next)=>{
     Users.findByToken(token).then((User)=>{
          if(!User) {
              return Promise.reject();
-        }
+            }
             req.User = User;
             req.token = token;
-        next();
-    }).catch((e)=>{
-    res.status(401).send()
-})
+            next();
+        }).catch((e)=>{
+         res.status(401).send()
+    })
 };
 module.exports = { authenticate};

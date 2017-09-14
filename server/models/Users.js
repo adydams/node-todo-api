@@ -36,7 +36,7 @@ let UserSchema= new mongoose.Schema( {
     });
 UserSchema.methods.toJSON = function () {
     let user = this;
-     let userToObject = user.toObject();
+    let userToObject = user.toObject();
     return _.pick(userToObject, ['_id', 'email']);
     
 };
@@ -53,6 +53,15 @@ UserSchema.methods.generateAuthToken = function(){
         return token;
     });
 };
+
+UserSchema.methods.removeToken  = function(token) { 
+     let user = this;
+    
+    return user.update({
+         $pull: {tokens:{token}}
+    });
+};
+
 UserSchema.statics.findByToken = function(token) {
     let Users = this;
     let decoded; 
@@ -68,7 +77,28 @@ UserSchema.statics.findByToken = function(token) {
         'tokens.access' : 'auth'
     });
 };
-//pre will make some codes run befor e an eevent
+
+//validating credentials
+UserSchema.statics.findByCredentials = function(email, password) {
+        let user = this;
+
+        return user.findOne({email}).then((user)=>{
+            if (!user){
+                return Promise.reject()
+                }
+                return new Promise((resolve, reject)=>{
+                 bcrypt.compare(password, user.password, (err, res)=>{
+                    if (res){
+                        resolve(user)
+                    }
+                    reject()
+            })
+        })
+    });
+};
+
+
+//pre will make some codes run before an eevent
 UserSchema.pre('save', function(next){
     let user = this;
 

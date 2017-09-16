@@ -76,13 +76,16 @@ app.get('/todos/:id', authenticate, (req,res)=>{
     })
 });    
 
-app.delete('/todos/:id',(req, res)=>{
+app.delete('/todos/:id',authenticate, (req, res)=>{
     let id= req.params.id;
     if(!ObjectID.isValid(id)){
       return res.status(400).send('Invalid id');
          
     }
-    Todos.findByIdAndRemove(id).then((todo)=>{
+    Todos.findOneAndRemove({
+        _id: id,
+        _creator: req.User._id
+    }).then((todo)=>{
       if(!todo){
           res.status(404).send('id not found')
       }
@@ -92,7 +95,7 @@ app.delete('/todos/:id',(req, res)=>{
     })
 });
 
-app.patch('/todos/:id',(req,res)=>{
+app.patch('/todos/:id',authenticate,(req,res)=>{
  let id= req.params.id;
  //_pick from lodash accepts objects
  let body = _.pick(req.body, ['text', 'completed']);
@@ -106,7 +109,10 @@ app.patch('/todos/:id',(req,res)=>{
      body.completed = false,
      body.completedAt= null
     }
-    Todos.findOneAndUpdate({_id: id}, {$set:body}, {new:true}).then((todo)=>{
+    Todos.findOneAndUpdate({
+        _id: id,
+        _creator: req.User.id
+    }, {$set:body}, {new:true}).then((todo)=>{
       if(!todo){
         return res.status(404).send();
     }
